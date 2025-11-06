@@ -410,10 +410,19 @@ func (l *Layer) resolveAddr(ctx context.Context, network string, host string, ad
 		lookupnet = "tcp"
 	}
 
+	// First try to resolve "sip" service
+	// "_sip._tcp.example.com."
 	_, addrs, err := l.dnsResolver.LookupSRV(ctx, "sip", lookupnet, host)
 	if err != nil {
-		return fmt.Errorf("fail to resolve target for %q: %w", host, err)
+		l.log.Debug("Failed to resolve 'sip' service, trying 'sips' service", "err", err)
+		// We failed, lets try with "sips" service
+		// "_sips._tcp.example.com."
+		_, addrs, err = l.dnsResolver.LookupSRV(ctx, "sips", lookupnet, host)
+		if err != nil {
+			return fmt.Errorf("fail to resolve target for %q: %w", host, err)
+		}
 	}
+
 	a := addrs[0]
 	addr.IP = net.ParseIP(a.Target[:len(a.Target)-1])
 	addr.Port = int(a.Port)
