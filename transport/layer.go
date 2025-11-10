@@ -423,7 +423,33 @@ func (l *Layer) resolveAddr(ctx context.Context, network string, host string, ad
 	}
 
 	a := addrs[0]
-	addr.IP = net.ParseIP(a.Target[:len(a.Target)-1])
+	// Extract target (remove trailing dot if present)
+	target := a.Target
+	if len(target) > 0 && target[len(target)-1] == '.' {
+		target = target[:len(target)-1]
+	}
+
+	// First try to parse as IP address (for backward compatibility)
+	addr.IP = net.ParseIP(target)
+
+	// If parsing failed, treat as hostname and resolve via DNS
+	if addr.IP == nil {
+		ips, err := l.dnsResolver.LookupHost(ctx, target)
+		if err != nil {
+			return fmt.Errorf("fail to resolve SRV target hostname %q: %w", target, err)
+		}
+
+		if len(ips) == 0 {
+			return fmt.Errorf("no IP addresses found for SRV target hostname %q", target)
+		}
+
+		addr.IP = net.ParseIP(ips[0])
+		if addr.IP == nil {
+			return fmt.Errorf("invalid IP address %q resolved for SRV target hostname %q", ips[0], target)
+		}
+	}
+
+	// Set addr.Port from SRV record port
 	addr.Port = int(a.Port)
 	return nil
 }
