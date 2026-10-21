@@ -1,6 +1,6 @@
 module github.com/livekit/sipgo
 
-go 1.22
+go 1.26.10
 
 require (
 	github.com/emiago/sipgo v0.24.1
